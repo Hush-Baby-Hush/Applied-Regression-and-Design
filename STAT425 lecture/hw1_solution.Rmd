@@ -1,0 +1,201 @@
+---
+title: "STAT 425 Assignment 1"
+output: pdf_document
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Due Monday, February 8, 11:59pm. Submit through Moodle.
+
+## Name: (insert your name here)
+### Netid: (insert)
+
+Submit your computational work both as an R markdown (*.Rmd) document and as a pdf, along with any files needed to run the code. Embed your answers to each problem in the document below after the question statement. If you have hand-written work, please scan or take pictures of it and include in a pdf file, ideally combined with your pdf output file from R Markdown.
+
+## Problem 1
+
+Thirty samples of cheddar cheese were analyzed for their content of acetic acid, hydrogen sulfide and lactic acid. A panel of judges tasted each sample and scored them, and the average taste score for each sample was recorded. The data are available as the data frame 'cheddar' in the **faraway** library. After loading the library enter 'help(cheddar)' for more information.
+
+**a)** Make a scatter plot of 'taste' versus 'Lactic' and include the least squares regression line on the graph. Comment on whether the graph appears consistent with data that follow a linear model.
+
+**Answer:**
+
+```{r 1a}
+library(faraway)
+attach(cheddar)
+plot(Lactic, taste) +
+  abline(lm(taste ~ Lactic))
+#detach(cheddar)
+```
+
+The data points follow a fairly strong linear model.
+
+**b)** Obtain and display the summary of the least square fitted model, including coefficient estimates, standard errors, t-values and p-values. Is there is a statistically significant association between lactic acid content and the average taste score, using a significance level of $\alpha=0.05$? Explain based on your results, making clear what information from the results you are using.
+
+```{r 1b}
+fit = lm(taste ~ Lactic)
+
+#summary
+summary = summary(fit)
+
+#coefficient estimates, standard errors, t-values, and p-values.
+summary$coefficients
+```
+
+With a p-value of 1.405e-05, we have enough evidence to conclude at the .05 significance level that there is a statistically significant association between lactic acid content and average taste score. We can reject H0 and conclude the linear coefficient is not 0.
+
+**Answer:**
+
+**c)** In R, the 'cor' function can compute the sample correlation coefficient between two variables in a data set. Compute the **squared** correlation between 'taste' and 'Lactic'. Verify that this is numerically equal to $R^2$ for the model. (Note: to refer to a variable within a data frame use the dataframe$variable syntax.)
+
+```{r 1c}
+cor(taste, Lactic)^2
+summary$r.squared
+cor(taste, Lactic)^2 - summary$r.squared
+```
+
+**Answer:**
+
+**d)** Compute a 95\% confidence interval for the coefficient of 'Lactic' in the model. 
+
+```{r 1d}
+confint(fit, 'Lactic', level = .95)
+```
+
+**Answer:**
+
+**e)** Compute a 95\% confidence interval for the mean taste value expected for a cheddar cheese sample with lactic acid concentration of 2.0. 
+
+**Answer:**
+
+```{r 1e}
+fit2 = lm(taste ~ Lactic)
+predict(fit, data.frame(Lactic = 2.0), interval = "confidence",level = .95)
+```
+
+## Problem 2
+
+The simple regression through the origin model has the form
+$$
+y_i = \beta_1 x_i + e_i, \quad i=1,2,\ldots,n,
+$$
+where the standard assumptions are that $E(e_i)=0$, $\text{var}(e_i)=\sigma^2$, and $\text{cov}(e_i, e_j)=0$ if $i\ne j$. The least squares estimate of $\beta_1$ minimizes the residual sum of squares,
+$$
+RSS(\beta_1) = \sum_{i=1}^n (y_i - \beta_1 x_i)^2
+$$
+as a function of $\beta_1$.
+
+**a)** Take the derivative of $RSS(\beta_1)$ with respect to $\beta_1$, set the derivative to zero. Solve the resulting equation algebraically to obtain the formula for the estimate, $\hat{\beta}_1$.
+
+**Answer:** Taking the partial derivative of $RSS(\beta_1)$ with respect to $\beta_1$ yields
+\begin{align*}
+  \frac{\partial}{\partial \beta_1} RSS(\beta_1)= \frac{\partial}{\partial \beta_1} \sum_{i=1}^n (y_i -\beta_1 x_i)^2=2\sum_{i=1}^n x_i(y_i-\beta_1 x_i).
+\end{align*}
+Setting the derivative to zero yields the equation
+\begin{align*}
+  \sum_{i=1}^n x_iy_i= \beta_1 \sum_{i=1}^n x_i^2,
+\end{align*}
+which implies that
+\begin{align*}
+  \hat{\beta}_1 = \frac{\sum_{i=1}^n x_iy_i}{\sum_{i=1}^n x_i^2}.
+\end{align*}
+
+
+**b)** Use your formula form Part a) to show that $\hat{\beta}_1$ is an unbiased estimator of $\beta_1$ under the standard assumptions.
+
+**Answer:** 
+Note that only $y_i$ is random and $x_i$ is fixed for $i = 1, \ldots, n$. Taking expectation of $\hat{\beta}_1$ results in
+\begin{align*}
+ E(\hat{\beta}_1) = \frac{\sum_{i=1}^n x_i E(y_i)}{\sum_{i=1}^n x_i}
+  &= \frac{\sum_{i=1}^n x_i E(\beta_1 x_i + e_i)}{\sum_{i=1}^n x_i^2} \\
+  &= \frac{ \beta_1  \cdot \sum_{i=1}^n x_i^2}{\sum_{i=1}^n x_i^2} \tag{$E(e_i)=0$} \\
+  &= \beta_1,
+\end{align*}
+which shows that $\hat{\beta}_1$ is an unbiased estimator of $\beta_1$.
+
+**c)** Show that
+$$
+\mbox{var}\left(\hat{\beta}_1\right) = \frac{\sigma^2}{\sum_{i=1}^n x_i^2}
+$$
+**Answer:** Through using ordinary variance operator, we can obtain
+\begin{align*}
+  \mathrm{var}(\hat{\beta}_1) 
+  = \mathrm{var} \left(\frac{\sum_{i=1}^n x_iy_i}{\sum_{i=1}^n x_i^2}\right) 
+  &= \frac{\sum_{i=1}^n x_i^2 \cdot \mathrm{var}(y_i)}{\left(\sum_{i=1}^n x_i^2\right)^2},
+\end{align*} 
+where we used the fact that $\mathrm{cov}(e_i, e_j )=0$ for $i \neq j$ and $\mathrm{cov}(y_i, y_j )= \mathrm{cov}(e_i, e_j)$ since $x_i$ is fixed. Because $\mathrm{var}(y_i)=\mathrm{var}(\beta_1x_i +e_i)=\mathrm{var}(e_i)=\sigma^2$, we can obtain 
+\begin{align*}
+  \mathrm{var}(\hat{\beta}_1) 
+  &= \frac{\sigma^2\sum_{i=1}^n x_i^2 }{\left(\sum_{i=1}^n x_i^2\right)^2}= \frac{\sigma^2}{\sum_{i=1}^n x_i^2},
+\end{align*} 
+which finishes the proof.
+
+
+**d)** Under the standard assumptions find $E(y_1)$ and $\mbox{var}(y_1)$.
+
+**Answer:** Since $E(e_1)=0$ and $E(e_1)=\sigma^2$, 
+\begin{align*}
+  E(y_1) &= E(\beta_1 x_1 + e_1)=\beta_1 x_1 + E(e_1)=\beta_1x_1 \\
+  \mathrm{var}(y_1)&= \mathrm{var}(\beta_1x_1 +e_1)=\mathrm{var}(e_1)=\sigma^2.
+\end{align*}
+
+**e)** Under the standard assumptions find expressions for $E(\hat{y}_1)$ and $\mbox{var}(\hat{y}_1)$.
+
+**Answer:** Since $\hat{y}_1=\hat{\beta}_1x_1$,
+\begin{align*}
+  E(\hat{y}_1) = E(\hat{\beta}_1x_1)= x_1 E(\hat{\beta}_1)=\beta_1 x_1,
+\end{align*}
+where we used the fact that $\hat{\beta}_1$ is unbiased from b). Next,
+\begin{align*}
+  \mathrm{var}(\hat{y}_1) = \mathrm{var}(\hat{\beta}_1x_1)= x_1^2 \cdot \mathrm{var}(\hat{\beta}_1)=\frac{\sigma^2 x_1^2}{\sum_{i=1}^n x_i^2},
+\end{align*}
+where we use the expression for $\mathrm{var}(\hat{\beta}_1)$ from c).
+
+
+
+## Problem 3:
+
+This problem refers again to the 'cheddar' data described in Problem 1.
+
+**a)** Make a 'pairs' plot of the data, i.e., a matrix of all the pairwise scatter plots between variables.
+
+**Answer:** 
+```{r}
+library("faraway")
+plot(cheddar)
+```
+
+**b)** Fit a multiple linear regression model with 'taste' as the response and the three chemical constituent concentrations as the predictors. Display a summary of your fitted model. Note: the 'lm' function can fit a multiple linear regression model using a formula of the form 'y ~ x1 + x2 + ... + xp'. 
+
+**Answer:**
+```{r}
+model = lm(taste~Acetic + H2S + Lactic, data = cheddar)
+summary(model)
+```
+
+**c)** Report the values of the regression coefficients for associated with the predictors. 
+
+**Answer:**
+```{r}
+coef(model)
+```
+
+**d)** Which of the predictor variables have statistically significant coefficients, rejecting the null hypothesis that the coefficient is zero, at the 5\% level of significance? Explain.
+
+**Answer:**
+H2S and Lactic. By checking the summary of fitted model, we can see these two are the variable with p value smaller then 5%. 
+
+**e)** Compute an estimate of the average taste score for a cheddar sample with Acetic= 5.5, H2S=5.0, Lactic=1.5.
+
+**Answer:**
+```{r}
+predict(model, newdata= data.frame(Acetic= 5.5, H2S=5.0, Lactic=1.5))
+```
+
+
+
+
+
+

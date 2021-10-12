@@ -1,0 +1,283 @@
+---
+title: "STAT 425 Assignment 3"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Due Sunday, March 7, 11:59pm.** Submit through Moodle.
+
+## Name: Zhongyan Liu
+### Netid: zl32
+
+Submit your computational work both as an R markdown (*.Rmd) document and as a pdf, along with any files needed to run the code. Embed your answers to each problem in the document below after the question statement. If you have hand-written work, please scan or take pictures of it and include in a pdf file, ideally combined with your pdf output file from R Markdown.
+
+## Problem 1
+
+The \texttt{fat} data in the \texttt{faraway} library contains age, weight, height, and various body circumference measurements for 252 men. The variables \texttt{brozek} and \texttt{siri} correspond to two different density related equations for percent body fat.
+
+**a)** Fit a linear model to predict the \texttt{siri} percentage body fat from
+\texttt{age}, \texttt{weight}, \texttt{height}, \texttt{neck}, \texttt{chest}, 
+\texttt{abdom}, \texttt{hip}, \texttt{thigh}, \texttt{knee}, \texttt{ankle}, \texttt{biceps}, \texttt{forearm}, and \texttt{wrist}. Display a model summary and state which of the variable coefficients are statistically significant at the 0.05 level.
+
+**Answer:**
+```{r}
+library(faraway)
+help(fat)
+```
+```{r}
+fit = lm(siri ~ age+weight+height+neck+chest+abdom+hip+thigh+knee+ankle+biceps+forearm+wrist, data = fat)
+summary(fit)
+```
+The abdom, neck, forearm and wrist predictors are statistically significant at the $\alpha=0.05$ significance level. 
+
+**b)** Perform a model comparison F test to determine whether a reduced model using only the variables \texttt{age}, \texttt{weight}, \texttt{height}, \texttt{abdom}, \texttt{forearm}, and \texttt{wrist} to predict \texttt{siri} is appropriate. Is the null hypothesis rejected at level 0.05? 
+
+**Answer:**
+```{r}
+fit_reduced = lm(siri ~ age+weight+height+abdom+forearm+wrist, data = fat)
+summary(fit_reduced)
+```
+```{r}
+anova(fit_reduced, fit)
+```
+With a p-value of 0.1798, this test fails to reject the null hypothesis at the $\alpha=0.05$ level. We accept the reduced model over the full model.
+
+
+**c)** Now consider the reduced model from Part b). Plot studentized residuals on the y-axis versus leverage (diagonal of hat matrix) on the x-axis for this model. Include a horizontal line at height 0 for reference. Recall from our notes that the function \texttt{influence} provides diagonals of the hat matrix as influence(ModelObject)$hat. Are there any high leverage observations, and if so do they appear to be response outliers, or are they well fit by the model?
+
+**Answer:**
+```{r}
+lev=influence(fit_reduced)$hat
+stud = rstudent(fit_reduced)
+graph = plot(lev, stud,
+             xlab = "leverage",
+             ylab = "studentized Residuals") +
+  abline(h = 0)
+```
+
+
+```{r}
+summary(fit_reduced)
+```
+
+
+
+check for high-leverage points
+```{r}
+n = 252
+p = 18
+lev[lev>2*p/n]
+```
+```{r}
+fat[lev>2*p/n,]
+```
+
+
+Check for outliers
+
+```{r}
+abs(qt(.05/(2*n), 244)) # Bonferroni correction
+```
+```{r}
+abs(qt(.05/2, 244))
+```
+```{r}
+sort(abs(stud), decreasing=TRUE)[1:5]  # No outliers. 
+```
+There are no outliers in this data set since all studentized residual (in
+abs. values) are lower than 3.778408.
+
+**d)** For the reduced model in parts b) and c), use a half-normal plot or sort function to display which observation has the largest Cook's Distance.
+
+**Answer:**
+Check for high influential points
+```{r}
+cook = cooks.distance(fit_reduced)
+halfnorm(sqrt(cook), labs=row.names(fat), ylab="sqrt(Cook's distance)")
+```
+
+```{r}
+max(cook)
+```
+From the plot we can see that observation "39" has the largest cook's distance. 
+
+**e)** For the same reduced model as in Part d), show the model summaries with and without the observation identified by Cook's Distance in Part d). Indicate which, if any, of the variables have significant coefficient t-tests in one but not the other of these two fitted models, at a significance level of 0.05. 
+
+**Answer:**
+
+the Cook’s distance for "39" is much larger than the other samples. So let’s remove “39”“, refit the model, and check the changes.
+
+```{r}
+summary(lm(siri ~ age+weight+height+abdom+forearm+wrist, data=fat[row.names(fat) != '39',]))
+```
+```{r}
+summary(fit_reduced)
+```
+weight and forearm have significant coefficient t-tests at a significance level of 0.05 in the changed model but not in the original reduced model.
+
+## Problem 2
+The \texttt{cheddar} data from the \texttt{faraway} library has data on samples of cheddar cheese. For each of 30 samples, a subjective \texttt{taste} score is given along with checmical composition measurements labeled \texttt{Acetic}, \texttt{H2S}, and \texttt{Lactic}.
+
+**a)** Fit a multiple linear regression model for predicting \texttt{taste} from the three chemical composition measurements. Which of the variables have statistically significant coefficients at level 0.05?
+
+**Answer:**
+```{r}
+library(faraway)
+help(cheddar)
+```
+```{r}
+fit = lm(taste ~ Acetic + H2S + Lactic, data = cheddar)
+summary(fit)
+```
+Acetic has statistically significant coefficients at level 0.05.
+
+**b)** Plot studentized residuals versus fitted values for the model in a), including a horizontal line at height 0 for reference. Is there any evidence of outliers, heteroscedasticity or curvature in the plot? Explain briefly.
+
+**Answer:**
+```{r}
+lev=influence(fit)$hat
+stud = rstudent(fit)
+graph = plot(fit$fitted.values, stud,
+             xlab = "leverage",
+             ylab = "fitted values") +
+  abline(h = 0)
+```
+
+No evidence in the plot.
+
+**c)** Use the Box-Cox method to find an optimal transformation of the response. What is the optimal power $\hat\lambda$ of the response, based on the log-likelihood?
+
+**Answer:**
+```{r bc}
+fit = lm(taste ~ Acetic + H2S + Lactic, data = cheddar)
+# We will do a grid search for the maximum of lambda
+lambda = seq(-2, 2, length=400); # it doesn't contain zero.
+L = NULL;
+n =nrow(cheddar)
+# Now loop over the 400 values of lambda and
+# record the log-likelihood function
+for(i in 1:400){
+y=(cheddar$taste^lambda[i]-1)/lambda[i];
+rss = sum(lm(y~cheddar$Acetic + cheddar$H2S + cheddar$Lactic)$res^2);
+L = c(L, -(n/2)*log(rss) + (lambda[i]-1)*sum(log(cheddar$taste)));
+}
+# Now select lambda that maximizes L
+lambda.hat = lambda[L==max(L)]
+lambda.hat
+```
+
+**d)** Does the 95% confidence interval for the Box-Cox transformation parameter $\lambda$ include $\lambda=1$? What is your interpretation of this?
+
+**Answer:**
+```{r}
+tmp=cheddar$taste.trans$x[cheddar$taste.trans$y > max(cheddar$taste.trans$y) - qchisq(0.95, 1)/2];
+range(tmp) # 95% CI. Read Chapter 9 in the Faraway textbook for details.
+```
+
+
+**e)** Use the optimal transformation found in c) to refit the data with the transformed response depending on the three chemical composition measurements. Plot studentized residuals versus fitted values for this transformed response model. Compare the graph qualitatively to the graph in Part b). Note: you can include a transformation of a variable in a formula by enclosing the transformation inside the function \texttt{I( )}, as in lm(I(y^3)~x, ...).
+
+**Answer:**
+```{r}
+plot(lambda, L, type="n"); lines(lambda, L, lty=2);
+abline(v=lambda.hat, col="red"); abline(v=1, col="blue")
+```
+
+```{r}
+library(MASS)
+sr.trans=boxcox(fit, lambda=seq(-2, 2, length=400))
+```
+
+```{r}
+boxcox(fit,plotit=T,lambda=seq(0,1.5,by=0.1)) # zoom-in
+```
+
+
+
+
+## Problem 3:
+
+The \texttt{pipeline} data in the \texttt{faraway} library consist of ultrasonic measurements of defects in the Alaska pipeline in the \texttt{Lab} and in the \texttt{Field}, i.e., on site. 
+
+**a)** Make a scatter plot of the \texttt{Lab} measurements versus the \texttt{Field} measurements, including the least squares regression line on the plot.
+
+**Answer:**
+
+```{r}
+library(faraway)
+dt <- pipeline
+model = lm(Lab~Field, data = pipeline)
+plot(dt$Field, dt$Lab)
+abline(lm(Lab~Field, data = pipeline))
+```
+
+
+**b)** Fit the linear regression of \texttt{Lab} on \texttt{Field} and show the model summary. How strong is the linear correlation between the lab and field measurements?
+
+**Answer:**
+
+```{r}
+model = lm(Lab~Field, data = pipeline)
+summary(model)
+```
+```{r}
+plot(model$fitted.values, model$residuals,
+             xlab = "Field",
+             ylab = "Lab") +
+  abline(h = 0)
+```
+```{r}
+cor(dt$Lab,dt$Field)
+```
+Firly strong
+
+**c)** Plot studentized residuals versus \texttt{Field} for the model in b). Does the graph show any evidence of heteroscedascticity or curvature? Describe briefly.
+
+**Answer:**
+```{r}
+lev=influence(model)$hat
+stud = rstudent(model)
+graph = plot(dt$Field, stud,
+             xlab = "field",
+             ylab = "studentized Residuals") +
+  abline(h = 0)
+```
+
+Show  evidence of heteroscedascticity 
+
+**d)** Fit a linear model regressing the log of \texttt{Lab} on the log of \texttt{Field}. Show the model summary and compare the linear correlation with that of the model in b). 
+
+**Answer:**
+
+```{r}
+model2 = lm(log(Lab)~log(Field), data = pipeline)
+summary(model2)
+```
+```{r}
+anova(model2,model)
+```
+
+
+**e)** For the model in d), plot studentized residuals versus the log of \texttt{Field}. Does this graph show any evidence of heteroscedascticity or curvature? Describe briefly.
+
+**Answer:**
+```{r}
+lev=influence(model)$hat
+stud = rstudent(model)
+graph = plot(log(dt$Field), stud,
+             xlab = "log field",
+             ylab = "studentized Residuals") +
+  abline(h = 0)
+```
+
+The graph shows curvature because it curves around abline h = 0. 
+
+
+
+

@@ -1,0 +1,239 @@
+---
+title: "STAT 425 Assignment 5"
+output:
+  html_document:
+    df_print: paged
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Due Tuesday, April 6, 11:59 pm.** Submit through Moodle.
+
+## Name: (Kimmy Liu)
+### Netid: (zl32)
+
+Submit your computational work both as an R markdown (*.Rmd) document and as a pdf, along with any files needed to run the code. Embed your answers to each problem in the document below after the question statement. If you have hand-written work, please scan or take pictures of it and include in a pdf file, ideally combined with your pdf output file from R Markdown.
+
+**Most relevant class notes:** 5.2.Spline, 6.Ancova, 7.VarSelect
+
+## Problem 1
+
+Consider the \texttt{prostate} cancer surgery data from the \texttt{faraway} library in \textbf{R}. The variable \texttt{lpsa} is a measurement of prostate specific antigen on the log scale. Treat \texttt{lpsa} as the response and all the other variables in the data frame as potential predictors.
+
+**a)** Using backward elimination testing and an alpha cutoff of 0.10, find the best model according to this procedure. Be sure to include the steps and the final model.
+
+**Answer:**
+```{r}
+library(faraway)
+```
+
+```{r}
+model.1a = lm(lpsa~., data = prostate)
+summary(model.1a)
+```
+Remove gleason:
+```{r}
+model.1b = lm(lpsa~lcavol+lweight+age+lbph+svi+lcp+pgg45, data = prostate)
+summary(model.1b)
+```
+remove lcavol:
+```{r}
+model.1c = lm(lpsa~lweight+age+lbph+svi+lcp+pgg45, data = prostate)
+summary(model.1c)
+```
+remove age:
+```{r}
+model.1d = lm(lpsa~lweight+lbph+svi+lcp+pgg45, data = prostate)
+summary(model.1d)
+```
+remove pgg45:
+```{r}
+model.1d = lm(lpsa~lweight+lbph+svi+lcp, data = prostate)
+summary(model.1d)
+```
+remove lbph:
+```{r}
+model.1e = lm(lpsa~lweight+svi+lcp, data = prostate)
+summary(model.1e)
+```
+Since all the variable has p-value<0.1, we receive model.1e as the final model. 
+
+**b)** Use backward selection in a stepwise algorithm to find the best model according to the AIC criterion. Be sure to include the steps and the final model.
+
+**Answer:**
+```{r}
+final.mod = step(model.1a, direction = "backward")
+final.mod
+```
+
+Therefore, the best model here is:lpsa ~ lcavol + lweight + age + lbph + svi
+```{r}
+aic.mod = lm(lpsa ~ lcavol + lweight + age + lbph + svi, data = prostate)
+summary(aic.mod)
+```
+
+**c)** Use stepwise selection with the "both" option to find the best model according to the BIC criterion. Include the steps and the final model.
+
+**Answer:**
+```{r}
+n=dim(prostate)[1]
+final.mod = step(model.1a, direction = "both", k = log(n))
+final.mod
+```
+Therefore, the final model is lpsa ~ lcavol + lweight + svi:
+```{r}
+bic.mod = lm(lpsa ~ lcavol + lweight + svi, data = prostate)
+summary(bic.mod)
+```
+
+**d)** Use the leaps and bounds algorithm to determine the model with smallest residual sums of squares for each model size from 2 to the maximum possible based on the number of columns in the data frame. Display the results by showing "which" variables were selected for model sizes 2, 3, etc.
+
+**Answer:**
+```{r}
+library(leaps)
+b=regsubsets(lpsa~., data = prostate)
+rs = summary(b)
+rs$which
+```
+
+**e)** Using the results from d) and further calculations, graph BIC versus model size for the models selected in part d). Which model is the overall best model according to BIC?
+
+
+**Answer:**
+```{r}
+msize = 2:9
+Bic = n*log(rs$rss/n) + msize*log(n)
+plot(msize, Bic, xlab="No. of Parameters", ylab = "BIC")
+```
+We can see that when the number of parameters is 4, BIC has the lowest value. 
+Therefore, the overall best model according to BIC is:lpsa~lcavol+lwight+svi
+```{r}
+BIC.mod = lm(lpsa ~ lcavol + lweight + svi, data = prostate)
+summary(BIC.mod)
+```
+
+## Problem 2
+The \texttt{aatemp} data in the \texttt{faraway} library comes from the U.S. Historical Climatological Network. The data report annual mean temperatures in Ann Arbor Michigan for roughly 150 years.  
+
+**a)** With \texttt{temp} as the response, fit a regression spline with intercept using B-spline basis functions of \texttt{year} and 8 degrees of freedom. Show the fitted curve on the scatter plot of \texttt{temp} versus \texttt{year}.
+
+**Answer:**
+```{r}
+library(ggplot2)
+library(splines)
+```
+
+```{r}
+model.sp = lm(temp~bs(year, df=8, intercept = TRUE), data=aatemp)
+plot(aatemp$year, aatemp$temp);
+lines(spline(aatemp$year, predict(model.sp)), col="blue")
+```
+
+
+**b)** How many knots does the model in a) have?
+
+**Answer:**
+m = df-4 = 8-4 = 4
+
+
+**c)** Compute AIC, BIC and adjusted R-square for the model in a).
+
+**Answer:**
+```{r}
+AIC(model.sp)
+BIC(model.sp)
+summary(model.sp)$adj.r.squared
+```
+
+**d)** Compute AIC for the b-spline models with degrees of freedom 4, 5, 6, ... 20. Plot AIC versus degrees of freedom. Which of these models is the best, according to AIC?
+
+**Answer:**
+```{r}
+mydf=4:20
+AIC = rep(0, length(mydf))
+
+for(i in 1:length(mydf)){
+  mod = lm(temp~bs(year, df=mydf[i], intercept = TRUE), data=aatemp)
+  AIC[i]=AIC(mod)
+}
+plot(mydf, AIC)
+```
+From the plot we can see that when the degree of freedom is 6, the AIC value is the lowest. Therefore, model with degree of freedom 6 is the best. 
+```{r}
+BestMod = lm(temp~bs(year, df=6, intercept = TRUE), data=aatemp)
+summary(BestMod)
+```
+
+
+**e)** Show the fitted curve from the best model selected in d) on the scatter plot of \texttt{temp} versus \texttt{year}. How does it compare with the curve in a)?
+
+**Answer:**
+```{r}
+Bestmod = lm(temp~bs(year, df=6, intercept = TRUE), data=aatemp)
+plot(aatemp$year, aatemp$temp);
+lines(spline(aatemp$year, predict(Bestmod)), col="red")
+model.df8 = lm(temp~bs(year, df=8, intercept = TRUE), data=aatemp)
+lines(spline(aatemp$year, predict(model.df8)), col="blue")
+legend("topright", lty=c(1,1), col=c("red", "blue"), legend=c("best df=6", "(a) df=8"))
+```
+From the plot above we can see the red curve from the best mod and blue curve from (a), and it seems the red one is better fit. 
+
+## Problem 3:
+
+In this problem we model data from a study of the prevalence of obesity, diabetes and cardiovascular disease among 403 African Americans in central Virginia. The data are in the \texttt{diabetes} dataset in the \texttt{faraway} library. One of the blood measurements is glycosolated hemoglobin (\texttt{glyhb}). A value higher than 7 is often considered to be a positive diagnosis for diabetes. Here we treat the numerical value og \texttt{glyhb} as the response, and consider possible predictor variables \texttt{gender} (a factor variable), \texttt{waist}, \texttt{age}, and stabilized glucose (\texttt{stab.glu}).
+
+**a)** Fit the ancova model that includes the main effects for \texttt{gender}, \texttt{waist}, \texttt{age}, \texttt{stab.glu} as well as the two-way interactions between gender and each of the other three predictor variables. Show the model summary and indicate which coefficients are significant at level 0.05.
+
+**Answer:**
+```{r}
+mod.full = lm(glyhb~factor(gender)+waist+age+stab.glu+gender:waist+gender:age+gender:stab.glu, diabetes)
+summary(mod.full)
+```
+From the plot we can see that gender and stab.glu are significant at level 0.05.
+
+**b)** By comparing with a simplified model, test the null hypothesis that the three interaction coefficients all equal zero versus the alternative that at least one of them is nonzero. Use overall significance level of 0.05 and state your conclusion.
+
+**Answer:**
+```{r}
+sim.mod = lm(glyhb~factor(gender)+waist+age+stab.glu, diabetes)
+anova(sim.mod,mod.full)
+```
+Since the p-value of the F-test is smaller than 0.05, we reject the null hypothesis at the $\alpha=0.05$ level.We don't accept the simplified model over the full model.
+
+
+**c)** The additive model has only the main effects; no interactions are included. (Main effects are terms involving only the original variables, not their products). Fit this model and determine which of the main effects appear to have statistically significant coefficients at the 0.05 level. 
+
+**Answer:**
+```{r}
+additive.mod = lm(glyhb~factor(gender)+waist+age+stab.glu, diabetes)
+summary(additive.mod)
+```
+From the plot we can see that age and stab.glu appear to have statistically significant coefficients at the 0.05 level.
+
+**d)** Compute AIC for the model in a) and the model in c). Which model is preferred according to this criterion?
+
+**Answer:**
+AIC in (a)
+```{r}
+AIC(mod.full)
+```
+AIC in (c)
+```{r}
+AIC(additive.mod)
+```
+Since the AIC in (a) is smaller than AIC in (c), the (a) full mod with interactions between variables is preferred. 
+
+**e)** Use the sequential analysis of variance table for the full model in a) to determine which main effects and interactions are significant. What do you conclude?
+
+**Answer:**
+```{r}
+anova(mod.full)
+```
+At the level 0.05, p-value for waist, age, stab.glu and waist:gender is less than 0.05, so all the main effects and interaction waist:gender is significant. 
+
+
+
+
+

@@ -1,0 +1,241 @@
+---
+title: "STAT 425 Assignment 3"
+output: pdf_document
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Due Sunday, March 7, 11:59pm.** Submit through Moodle.
+
+## Name: (insert your name here)
+### Netid: (insert)
+
+Submit your computational work both as an R markdown (*.Rmd) document and as a pdf, along with any files needed to run the code. Embed your answers to each problem in the document below after the question statement. If you have hand-written work, please scan or take pictures of it and include in a pdf file, ideally combined with your pdf output file from R Markdown.
+
+## Problem 1
+
+The \texttt{fat} data in the \texttt{faraway} library contains age, weight, height, and various body circumference measurements for 252 men. The variables \texttt{brozek} and \texttt{siri} correspond to two different density related equations for percent body fat.
+
+**a)** Fit a linear model to predict the \texttt{siri} percentage body fat from
+\texttt{age}, \texttt{weight}, \texttt{height}, \texttt{neck}, \texttt{chest}, 
+\texttt{abdom}, \texttt{hip}, \texttt{thigh}, \texttt{knee}, \texttt{ankle}, \texttt{biceps}, \texttt{forearm}, and \texttt{wrist}. Display a model summary and state which of the variable coefficients are statistically significant at the 0.05 level.
+
+**Answer:** We first fit the model as below.
+```{r}
+# load package
+require('faraway')
+lmod <- lm(siri ~ age + weight + height + neck + chest + abdom + 
+             hip + thigh + knee + ankle + biceps + forearm + 
+             wrist, data = fat)
+summary(lmod)
+```
+As we can see from the summary table, under a significance level of $5\%$, the coefficients of the circumferences of neck, abdom, forearm, and wrist are statistically significant.
+
+**b)** Perform a model comparison F test to determine whether a reduced model using only the variables \texttt{age}, \texttt{weight}, \texttt{height}, \texttt{abdom}, \texttt{forearm}, and \texttt{wrist} to predict \texttt{siri} is appropriate. Is the null hypothesis rejected at level 0.05? 
+
+**Answer:** We can fit the reduced model, and perform the ANOVA $F$-test as below.
+```{r}
+submod <- lm(siri ~ age + weight + height + abdom + forearm +
+               wrist, data = fat)
+anova(submod, lmod)
+```
+Under a significance level of $5\%$, with $p$-value $0.1798$, we fail to reject the null hypothesis.
+
+**c)** Now consider the reduced model from Part b). Plot studentized residuals on the y-axis versus leverage (diagonal of hat matrix) on the x-axis for this model. Include a horizontal line at height 0 for reference. Recall from our notes that the function \texttt{influence} provides diagonals of the hat matrix as influence(ModelObject)$hat. Are there any high leverage observations, and if so do they appear to be response outliers, or are they well fit by the model?
+
+**Answer:** We first plot
+```{r}
+plot(x = influence(submod)$hat, y = rstudent(submod),
+     xlab = 'Leverage', ylab = 'Studentized Residuals',
+     col = 'deepskyblue',
+     main = 'Leverage and Studentized Residuals')
+abline(h = 0, col = 'magenta')
+```
+Using a rule of thumb of $2 p / n$, where $n = 252$ and $p=7$, we can find observations with high leverage as below.
+```{r}
+p <- ncol(model.matrix(submod))
+n <- nrow(fat)
+(hlobs <- which(influence(submod)$hat > 2 * p / n))
+```
+We can check whether they are outliers using Bonferroni correction as 
+```{r}
+m <- n
+cv <- qt(.05 / (2 * m), df = df.residual(submod))
+which(abs(rstudent(submod)[hlobs]) > abs(cv))
+```
+None of the observations is rejected as an outlier after Bonferroni adjustment for the sample size.
+
+
+**d)** For the reduced model in parts b) and c), use a half-normal plot or sort function to display which observation has the largest Cook's Distance.
+
+**Answer:** We can find the observation that has the largest Cook's distance as below.
+```{r}
+cook <- cooks.distance(submod)
+halfnorm(cook,  ylab = "Cook's distance", 
+         main = "Half-normal plot of Cook's distance")
+```
+Thus, the 39th observation has the largest Cook's distance.
+
+**e)** For the same reduced model as in Part d), show the model summaries with and without the observation identified by Cook's Distance in Part d). Indicate which, if any, of the variables have significant coefficient t-tests in one but not the other of these two fitted models, at a significance level of 0.05. 
+
+**Answer:** We can check this result with
+```{r}
+submod2 <- lm(siri ~ age + weight + height + abdom + forearm + 
+                wrist, data = fat[-39, ])
+tab <- round(cbind(coef(summary(submod))[, 4], 
+      coef(summary(submod2))[, 4], NA), 4)
+tab[, 3] <- ifelse((tab[, 1] >= 0.05 & tab[, 2] >= 0.05 | 
+                     tab[, 1] < 0.05 & tab[, 2] < 0.05) == TRUE, 
+                   yes = 0, no = 1)
+colnames(tab) <- c('With', 'Without', 'Inconsistent')
+tab
+```
+As we can see, $\texttt{weight}$ and $\texttt{forearm}$  have significant coefficient $t$-tests in one but not the other of these two fitted models, at a significance level of $5\%$.
+
+
+## Problem 2
+The \texttt{cheddar} data from the \texttt{faraway} library has data on samples of cheddar cheese. For each of 30 samples, a subjective \texttt{taste} score is given along with checmical composition measurements labeled \texttt{Acetic}, \texttt{H2S}, and \texttt{Lactic}.
+
+**a)** Fit a multiple linear regression model for predicting \texttt{taste} from the three chemical composition measurements. Which of the variables have statistically significant coefficients at level 0.05?
+
+**Answer:**
+
+```{r 2a}
+library(faraway)
+fit = lm(taste ~ Acetic + H2S + Lactic, data = cheddar)
+summary(fit)
+```
+
+H2S and Lactic have statistically significant coefficients at the the 0.05 significance level.
+
+**b)** Plot studentized residuals versus fitted values for the model in a), including a horizontal line at height 0 for reference. Is there any evidence of outliers, heteroscedasticity or curvature in the plot? Explain briefly.
+
+**Answer:**
+
+
+```{r 2b}
+p = plot(fit$fitted.values, rstudent(fit),
+     xlab = "Fitted Values",
+     ylab = "Studentized Residuals",
+     main = "Initial Response Model") +
+  abline(h = 0, col = "blue")
+```
+
+There seems to be a point with a studentized residual value of about 3 that may be an outlier. The studentized residuals seem to have slightly higher variance with greater fitted values, so that may be evidence for some slight heteroscedasticity. Other than that, the points seem to be distributed fairly randomly, so there is no evidence for a clear curve in the plot.
+
+**c)** Use the Box-Cox method to find an optimal transformation of the response. What is the optimal power $\hat\lambda$ of the response, based on the log-likelihood?
+
+**Answer:**
+
+```{r 2c}
+library(MASS)
+trans = boxcox(fit, lambda=seq(-2, 2, length=400))
+trans$x[trans$y == max(trans$y)]
+boxcox(fit,plotit=T,lambda=seq(0.35,1.05,by=0.1))
+```
+
+The optimal lambda value for the response is .6667 or 2/3.
+
+**d)** Does the 95% confidence interval for the Box-Cox transformation parameter $\lambda$ include $\lambda=1$? What is your interpretation of this?
+
+**Answer:**
+
+```{r 2d}
+tmp=trans$x[trans$y > max(trans$y) - qchisq(0.95, 1)/2]
+range(tmp)
+```
+
+This confidence interval doesn't include the value of lambda = 1, so an appropriate transformation is encouraged.
+
+**e)** Use the optimal transformation found in c) to refit the data with the transformed response depending on the three chemical composition measurements. Plot studentized residuals versus fitted values for this transformed response model. Compare the graph qualitatively to the graph in Part b). Note: you can include a transformation of a variable in a formula by enclosing the transformation inside the function \texttt{I( )}, as in lm(I(y^3)~x, ...).
+
+**Answer:**
+
+```{r 2e}
+lambda = 2/3
+fit_2 = lm(I((taste^(lambda) - 1)/lambda) ~ Acetic + H2S + Lactic, data = cheddar)
+
+p2 = plot(fit_2$fitted.values, rstudent(fit_2),
+     xlab = "Fitted Values",
+     ylab = "Studentized Residuals",
+     main = "Transformed Response Model") +
+  abline(h = 0, col = "blue")
+```
+
+After the transformation, the single point that may have been an outlier seems less extreme. The variance across studentized residuals is fairly even regardless of the fitted values. This would suggest the transformed model has reduced heteroscedasticity when compared to the initial model. The curvature appears to be relatively the same.
+
+
+## Problem 3:
+
+The \texttt{pipeline} data in the \texttt{faraway} library consist of ultrasonic measurements of defects in the Alaska pipeline in the \texttt{Lab} and in the \texttt{Field}, i.e., on site. 
+
+**a)** Make a scatter plot of the \texttt{Lab} measurements versus the \texttt{Field} measurements, including the least squares regression line on the plot.
+
+**Answer:**
+```{r}
+library("faraway")
+model = lm(Lab ~ Field, data = pipeline)
+plot(pipeline$Field, pipeline$Lab, xlab = "Field", ylab = "Lab")
+abline(model$coefficients, col = 2)
+```
+
+
+**b)** Fit the linear regression of \texttt{Lab} on \texttt{Field} and show the model summary. How strong is the linear correlation between the lab and field measurements?
+
+**Answer:**
+```{r}
+summary(model)
+```
+
+The multiple $R^2$ is 0.8941 according the model summary. We can see the linear correlation is pretty strong between the lab and field. 
+
+
+**c)** Plot studentized residuals versus \texttt{Field} for the model in b). Does the graph show any evidence of heteroscedascticity or curvature? Describe briefly.
+
+**Answer:**
+```{r}
+plot(pipeline$Field, rstudent(model),
+     xlab = "Field",
+     ylab = "studentized residuals")  
+```
+
+We somehow can see the trend here but apparently the variance of error is not constant according to the plot. This suggests heteroscedasctic error variance. 
+
+**d)** Fit a linear model regressing the log of \texttt{Lab} on the log of \texttt{Field}. Show the model summary and compare the linear correlation with that of the model in b). 
+
+**Answer:**
+```{r}
+modellog = lm(I(log(Lab))~I(log(Field)), data = pipeline)
+summary(modellog)
+```
+
+The multiple $R^2$ value 0.9337 is larger than 0.8941. We can see that the linear correlation here is stronger. 
+
+
+**e)** For the model in d), plot studentized residuals versus the log of \texttt{Field}. Does this graph show any evidence of heteroscedascticity or curvature? Describe briefly.
+
+**Answer:**
+```{r}
+plot(log(pipeline$Field), rstudent(modellog),
+     xlab = "log of Field",
+     ylab = "studentized residuals") 
+```
+
+The graph looks much better now. No obvious curvature is shown and the variance of error seems to be consistent. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

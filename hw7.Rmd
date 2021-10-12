@@ -1,0 +1,238 @@
+---
+title: "STAT 425 Assignment 7"
+output:
+  html_document:
+    df_print: paged
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Due Tuesday, May 4, 11:59 pm.** Submit through Moodle.
+
+## Name: Kimmy Liu
+### Netid: zl32
+
+Submit your computational work both as an R markdown (*.Rmd) document and as a pdf, along with any files needed to run the code. Embed your answers to each problem in the document below after the question statement. If you have hand-written work, please scan or take pictures of it and include in a pdf file, ideally combined with your pdf output file from R Markdown.
+
+**Most relevant class notes:** 10.1.TwoWayAnova1, 10.2.TwoWayAnova2, 11.1.ExperimentalDesign1, 11.2.ExperimentalDesign2
+
+## Problem 1
+
+The data set \texttt{ctsib} in \texttt{faraway} comes from an experiment described in the documentation as follows:
+\begin{quotation}\noindent
+An experiment was conducted to study the effects of surface and vision on balance. The balance of subjects were observed for two different surfaces and for restricted and unrestricted vision. Balance was assessed qualitatively on an ordinal four-point scale based on observation by the experimenter. Forty subjects were studied ... while standing on foam or a normal surface and with their eyes closed or open or with a dome placed over their head. Each subject was tested twice in each of the surface and eye combinations for a total of 12 measures per subject.
+\end{quotation}
+
+In this problem, we will ignore the subject effects, and perform the two-way ANOVA analysis of the response score \texttt{CTSIB} as a function of \texttt{Surface} and \texttt{Vision} as if the experiment had completely randomized design. In Problem 2, for comparison, we will perform the more proper analysis that accounts for the subject as a blocking variable.
+
+
+**a)** Here is a way to count how many observations fall in each combination of the two treatment factors:
+
+```{r}
+library(faraway)
+xtabs(~Surface+Vision, data=ctsib)
+```
+
+Because the design is balanced across all 6 factor combinations, we can do the balanced two-way ANOVA analysis. Here is the ANOVA table for the model with main effects and interactions. 
+
+```{r}
+modCRD = lm(CTSIB~Surface*Vision, data=ctsib)
+summary(aov(modCRD))
+```
+
+Are there significant interactions? Explain.
+
+**Answer:**
+There are no significant interactions since the p-value for surface:vision is 0.594>0.05
+
+
+**b)** Here is how we can get one of the two possible interaction plots for these data.
+
+```{r}
+with(ctsib, interaction.plot(x.factor=Surface, trace.factor=Vision, response=CTSIB))
+```
+
+Provide the other interaction plot, with \texttt{Vision} on the x-axis, and describe what the plots suggest about how the mean balance scores vary across the different combinations of Vision and Surface.
+
+**Answer:**
+
+```{r}
+with(ctsib, interaction.plot(x.factor=Vision, trace.factor=Surface, response=CTSIB))
+```
+
+From plot with Surface on the x-axis we can see that foam surface has higher mean of CTSIB compared to norm surface with same vision factor and when the surface factor is same, the mean of CTSIB from higher to lower among vision factor is closed>dome>open.
+
+From plot with vision on the x-axis we can see same result as stated above.
+
+**c)** Fit the additive model (main effects only for \texttt{Surface} and \texttt{Vision}), and show the corresponding analysis of variance table. Are the main effects significant?
+
+**Answer:**
+```{r}
+mod.additive = lm(CTSIB~Surface+Vision, data = ctsib)
+anova(mod.additive)
+```
+Yes, the main effects are both significant since they both have very small p-value that <<0.05
+
+**d)** Display the additive model summary that includes the coefficient estimates and standard errors. What are the reference categories for \texttt{Surface} and \texttt{Vision}?
+
+**Answer:**
+```{r}
+summary(mod.additive)
+```
+The reference categories for surface and vision is foam and closed. 
+
+**e)** Perform the Tukey honest significant difference analysis of the two treatment factors, based on the additive model. Which Surface and Vision level differences are statistically significant, controlling the family-wise false postive rate at 0.05?
+
+**Answer:**
+```{r}
+TukeyHSD(aov(CTSIB~Surface+Vision, data = ctsib))
+```
+norm-foam for surface and open-closed, open-dome for vision differences are statistically significant since their p-value is less than 0.05
+
+
+## Problem 2 
+
+The Problem 1 analysis of the \texttt{ctsib} data is technically incorrect, because we expect the 12 measurements from each subject to be more closely related (correlated) than observations between subjects. In other words, \texttt{Subject} is a blocking variable. The subject id is a number, but we should treat it as a factor (categorical label) variable. Therefore, in this experiment we have 40 blocks (the subjects), and 2 observations for each of the 6 treatment combinations within each block. Here are the numbers of observations per cell for the first 3 subjects (blocks), so you can see the design:
+
+```{r}
+xtabs(~Surface+Vision+as.factor(Subject), data=ctsib)[,,1:3]
+```
+
+**a)** Here is the ANOVA table for the model that adds the blocking variable as a main effect in addition to the main effects and interactions between the two treatment factors:
+
+```{r}
+modRCBD = lm(CTSIB~as.factor(Subject)+Surface*Vision, data=ctsib)
+summary(aov(modRCBD))
+```
+
+Are there significant interactions? Explain. 
+
+**Answer:**
+No, since the p-value for surface:vision is larger than 0.05
+
+**b)** Comparing the ANOVA table part 2a) with the Anova table in Problem 1a), which sums of squares have changed and which ones remain the same? Same question for the different F values, how did each of them change (larger, smaller, unchanged)?
+
+**Answer:**
+1(a):
+```{r}
+modCRD = lm(CTSIB~Surface*Vision, data=ctsib)
+summary(aov(modCRD))
+```
+As we can see, Residuals sum of square has changed while surface, vision and surface:vision hasn't changed.
+F values for surface change larger
+F values for vision change larger
+F values for surface:vision change larger
+
+**c)** Fit the additive model (main effects only for \texttt{as.factor(Subject)}, \texttt{Surface} and \texttt{Vision}), and show the corresponding analysis of variance table. Are the main effects significant? How have the F values of the main effects for \texttt{Vision} and \texttt{Surface} changed compared with the results in Problem 1c)?
+
+**Answer:**
+```{r}
+mod.add = lm(CTSIB~as.factor(Subject)+Surface+Vision, data=ctsib)
+anova(mod.add)
+```
+All the main effects are significant with very small p-value. 
+
+1(c):
+```{r}
+mod.additive = lm(CTSIB~Surface+Vision, data = ctsib)
+anova(mod.additive)
+```
+Compared to 1(c), the F value for surface becomes larger and F value for vision also becomes larger. 
+
+**d)** Compute the ratio of the residual standard error $\hat{\sigma}$ for the model in Part 1c to the residual standard error for the model in Part 2c. What does this say about the relative efficiency of the completely randomized design compared with the randomized blocks design?
+
+**Answer:**
+```{r}
+summary(mod.additive)$sigma/summary(mod.add)$sigma
+```
+Since the ratio is bigger than 1, we can tell that the relative efficiency of the completely randomized design is worse than the randomized blocks design. Smaller residual standard error means better predictions. 
+
+**e)** Using the additive model that included the subject as a blocking variable, redo the Tukey honest significant difference analysis of the two treatment factors, \texttt{Surface} and \text{Vision}. Which Surface and Vision level differences are statistically significant, controlling the family-wise false postive rate at 0.05? Hint: if using the TukeyHSD function, include the argument \texttt{which=c("Surface", "Vision")} to obtain results for those factors only and not show the $40*39/2=780$ blocking variable differences, which are not of interest.
+
+
+**Answer:**
+```{r}
+TukeyHSD(aov(CTSIB~as.factor(Subject)+Surface+Vision,  data = ctsib), which=c("Surface", "Vision"))
+```
+From the result we can see that all pairwise that norm-foam, dome-closed, open-closed and open-dome differences are statistically significant at level 0.05. 
+
+## Problem 3  
+
+The \texttt{alfalfa} data in the \texttt{faraway} library are from an experiment to study yield from planted alfalfa seeds give different inoculum treatments. The experiment compared five treatments, A-E, where E was the control level. Two blocking variables were used: 1) \texttt{shade}, which is the distance of the location in the field from a tree line divided into 5 shade areas (1-5); and 2) \texttt{irrigation}, which is an irrigation measure divided into 5 levels. The experiment used an incomplete design such that each of the 5 treatments was given once for each level of shade and each level of irrigation, for a total of 25 observations.
+
+
+**a)** To understand which combinations of variable levels were used in the experiment, display the result of running the cross-tabulation command 
+$$
+\texttt{xtabs(yield $\sim$ inoculum + shade + irrigation, data=alfalfa)}
+$$
+as illustrated in the class notes on experimental design. Note that an entry in the cross-tab is 0 if that combination did not occur, and the entry is the response value if that combination did occur. Based on the information in the data write down the form of the $5\times 5$ latin square used in this design. Rows should be levels of irrigation, columns should be levels of shade, and the entries in the table should be treatment labels.
+
+**Answer:**
+
+\begin{tabular}{cccccc}
+Block & Shade1 & Shade2 & Shade3 & Shade4 & Shade5 \\
+Irrig1 & A & D & C & E & B \\
+Irrig2 & B & E & D & A & C \\
+Irrig3 & D & B & A & C & E \\
+Irrig4 & C & A & E & B & D \\
+Irrig5 & E & C & B & D & A \\
+\end{tabular}
+
+```{r}
+xtabs(yield ~ inoculum + shade + irrigation, data=alfalfa)
+```
+
+
+**b)** Fit the additive linear model and display the model summary. Informally, which of the treatments appear to increase the yield the most compared to the control, E?
+
+**Answer:**
+
+```{r}
+mod.additive = lm(yield ~ inoculum + shade + irrigation, data=alfalfa)
+summary(mod.additive)
+```
+The treatment C appear to increase the yield the most compared to control E. 
+
+**c)** Display diagnostic plots for the fitted model. Are there any concerning patterns in the residuals versus fitted values, quantile-quantile plot of studentized residuals, or scale plot of absolute residuals versus fitted values?
+
+**Answer:**
+
+```{r}
+par(mfrow=c(2,2))
+plot(mod.additive)
+```
+There is some concerning pattern in the residuals versus fitted values plot and scale-location plot that the line is curved and not horizontal at all and variance in residuals seems to increase as fitted values increase. 
+
+There is also some concern in the Normal Q-Q plot that points seem lie below the reference line at lowest and highest quantiles. 
+
+**d)** As illustrated in the notes, use the ``drop1'' method to test the perform F tests of the blocking and treatment factors. What do you conclude from the results?
+
+**Answer:**
+```{r}
+drop1(mod.additive, test = "F")
+```
+inoculum and shade is statistically significant at 0.05 level while irrigation is not. 
+
+**e)** 
+Perform a Tukey honest significant differences analysis of the differences between treatment means. Because of the lack of orthoginality between treatment and blocking factors, we can't use the \texttt{aov} and \texttt{TukeyHSD} functions to do the job. Instead we have to compute directly as illustrated in the notes on latin squares and balanced incomplete block designs. To get started, observe that the margin of error (confidence interval half-width) for Tukey HSD paired differences has the form
+$$
+\texttt{qtukey(0.95, nmeans, df)}*se_{\text{diff}}/\sqrt{2}
+$$
+where \texttt{nmeans} is the number of different means being compared, \texttt{df} is the residual degrees of freedom for the model, and $se_{\text{diff}}$ is the standard error treatment differences reported for the non-reference treatment coefficients in the model summary. Determine which pairs of treatments have significantly different mean yields.
+
+**Answer:**
+
+```{r}
+qtukey(0.95,5,13)*1.108/sqrt(2)
+```
+
+```{r}
+tcoefs = (c(0,coef(mod.additive)[10:13]))
+abs(outer(tcoefs, tcoefs, "-"))>3.488738
+```
+We observe that no pairs of treatments have significantly different mean yields.
+
+
+

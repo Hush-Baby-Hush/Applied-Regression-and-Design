@@ -1,0 +1,148 @@
+---
+title: "STAT 425 Assignment 8"
+output:
+  html_document:
+    df_print: paged
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Due Wednesday, May 12, 11:59 pm.** Submit through Moodle.
+
+## Name: Kimmy Liu
+### Netid: zl32
+
+Submit your computational work both as an R markdown (*.Rmd) document and as a pdf, along with any files needed to run the code. Embed your answers to each problem in the document below after the question statement. If you have hand-written work, please scan or take pictures of it and include in a pdf file, ideally combined with your pdf output file from R Markdown.
+
+**Most relevant class notes:** 11.1.ExperimentalDesign1, 11.2.ExperimentalDesign2, 12.RandomEffects
+
+## Problem 1 (15 points, 3 points for each part)
+
+The one-way random factor ANOVA model with $n_i$ observations for each level of the random factor has the form
+$$
+y_{ij} = \mu + \alpha_i + e_{ij}, \quad i=1,2,\ldots,k; \quad j=1,2,\ldots,n_i
+$$
+where $\mu$ is a constant, **but the $\alpha_i$ and $e_{ij}$ are independent random variables** distributed as
+$$
+\alpha_i \sim N(0, \sigma_\alpha^2) \text{  and  } e_{ij}\sim N(0, \sigma^2).
+$$
+The total number of observations is $n = n_1+n_2+\cdots + n_k$.
+
+**a)** Show that the model assumptions stated above imply $E(y_{ij})=\mu$ for all $i$ and $j$.
+
+
+**Answer:**
+
+
+**b)** In general, if $U_1$ and $U_2$ are independent (and therefore uncorrelated) random variables, then we know that $Var(U_1+U_2)=Var(U_1)+Var(U_2)$. Using this fact, obtain a simplified expression for $Var(y_{ij})$.
+
+**Answer:**
+
+**c)** For any 4 random variables $U_1, U_2, U_3, U_4$, we know that
+$$
+Cov(U_1+U_2, U_3+U_4) = Cov(U_1, U_3)+Cov(U_1, U_4)+Cov(U_2, U_3)+Cov(U_2, U_4).
+$$
+Using these facts, show that if $i \ne i^{\prime}$, then $Cov(y_{ij}, y_{i^{\prime}j^{\prime}})=0$, i.e., observations from different groups are uncorrelated. 
+
+**Answer:**
+
+**d)** Now, we show that observations from the same group have nonzero covariance. 
+Show that if $j\ne j^{\prime}$, then $Cov(y_{ij}, y_{ij^{\prime}}) = \sigma_{\alpha}^2$. (Useful fact: for any random variable $U$, $Cov(U,U)=Var(U)$)
+
+**Answer:**
+
+**e)** The final step is to obtain the intra-class correlation coefficient for two observations from the same group. Remembering the definition of correlation,
+$$
+Corr(U,V)=\frac{Cov(U,V)}{\sqrt{Var(U)Var(V)}},
+$$
+show that if $j\ne j^{\prime}$ then
+$$
+Corr(y_{ij}, y_{ij^{\prime}})=\frac{\sigma_{\alpha}^2}{\sigma_{\alpha}^2+\sigma^2}.
+$$
+
+**Answer:**
+
+
+
+## Problem 2 (15 points, 3 points for each part)  
+
+In assignment 7 we analyzed the \texttt{ctsib} data from \text{faraway} using \texttt{Subject} as a blocking variable as we studied the primary fixed factors \texttt{Surface} and \texttt{Vision}. In this problem we reanalyze the data using a mixed model analysis. We'll continue to treat \texttt{Surface}, \texttt{Vision} and their interactions as fixed effects, but we'll treat \texttt{Subject} as a random effect. Recall that each of the 40 subjects contributed 12 observations to the study, 2 attempts for each of the $2 \times 3$ combinations of levels of \texttt{Surface} and \texttt{Vision}. We expect the obervations from the same subject to be correlated. Therefore we'll consider a linear mixed model of the form
+$$
+y_{ijk} = \mu + \alpha_i^{Surf} + \beta_j^{Vis}+(\alpha \beta)_{ij}^{Surf* Vis} + \gamma_k^{Subj}+e_{ijk}
+$$
+where the first four terms on the right side of the equation are fixed effects that satisfy reference cell constraints, $\gamma_k^{Subj}$ are independent $N(0, \sigma_\gamma^2)$ random subject effects, and $e_{ijk}$ are random independent errors. 
+
+
+**a)** We'll need the following libraries:
+```{r}
+library(faraway)
+library(lme4)
+```
+Then we can fit the model described above using the REML method as follows:
+```{r}
+mod1.reml = lmer(CTSIB ~ Surface*Vision + (1 | Subject), data=ctsib)
+summary(mod1.reml, corr=FALSE)
+```
+
+Based on the results above, calculate the REML estimate of the intraclass correlation coefficient for two observations from the same subject.
+
+
+**Answer:**
+```{r}
+ICC = 0.07246 /(0.07246+0.12400)
+ICC
+```
+the REML estimate of the intraclass correlation coefficient for two observations from the same subject is 0.3688283.
+
+
+**b)** Use the \texttt{confint} function on the fitted model to obtain bootstrap 95\% confidence intervals for the estimated parameters (as demonstrated on the very last lecture slide of the entire course). Does the confidence interval for the \texttt{Subject} random effect variance exclude zero? What does this mean?
+
+**Answer:**
+
+```{r}
+suppressMessages(confint(mod1.reml, method="boot"))
+```
+Yes, the confidence interval for the \texttt{Subject} random effect variance .sig01 exclude zero. 
+This means we can reject null hypothesis. The correlation is significant. 
+
+**c)** Use the maximum likelihood (ML) method to refit the above model and show the model summary. Compare the subject variance component estimates from ML and REML. Which estimate is smaller and by how much?
+
+**Answer:**
+
+```{r}
+mod1.ml = lmer(CTSIB ~ Surface*Vision + (1 | Subject), data=ctsib, REML = FALSE)
+summary(mod1.ml)
+```
+the subject variance component estimates from ML is 0.07051 while is 0.07246 from REML.  
+The ML estimate is smaller from REML by 1.95*e-3 which is 2.69%. 
+
+
+**d)** Use ML to fit the reduced model without the fixed effect interactions between \texttt{Surface} and \texttt{Vision} and show the model summary. The model should still include the \texttt{Subject} random effect. How much did the subject random effect variance change compared with part c).
+
+**Answer:**
+```{r}
+mod2.ml = lmer(CTSIB ~ Surface+Vision + (1 | Subject), data=ctsib, REML = FALSE)
+summary(mod2.ml)
+```
+subject random effect variance for reduced model is 0.07047, which is 4*e-5 or 0.0567% smaller than (c)
+
+
+**e)** By comparing the models in c) and d), compute the log-likelihood ratio test statistic for $H_0: (\alpha \beta)_{ij}^{Surf* Vis}=0$ (no fixed effect interactions between \texttt{Surface} and \texttt{Vision}). Also compute the chi-square p-value. Which model, full or reduced, should we use based on the result?
+
+
+**Answer:**
+```{r}
+llrt = as.numeric(2*(logLik(mod1.ml)-logLik(mod2.ml)))
+llrt
+```
+```{r}
+pchisq(llrt,1,lower=FALSE)
+```
+P-value = 0.1972931 is fairly big that > 0.1, so we fail to reject null. Based on the result, we should use the reduced model. 
+
+
+
+
+

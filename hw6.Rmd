@@ -1,0 +1,313 @@
+---
+title: "STAT 425 Assignment 6"
+output:
+  html_document:
+    df_print: paged
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Due Monday, April 19, 11:59 pm.** Submit through Moodle.
+
+## Name: Kimmy Liu
+### Netid: zl32
+
+Submit your computational work both as an R markdown (*.Rmd) document and as a pdf, along with any files needed to run the code. Embed your answers to each problem in the document below after the question statement. If you have hand-written work, please scan or take pictures of it and include in a pdf file, ideally combined with your pdf output file from R Markdown.
+
+**Most relevant class notes:** 8.Shrinkage, R_Shrink.Rmd, 9.1.OneWayAnova1, 9.2.OneWayAnova2. We also use some of our methods from earlier in the class.
+
+## Problem 1
+
+Consider the \texttt{fat} data from the \texttt{faraway} library in \textbf{R}. The following code is an example of how to select a random test set of 25 observations, and to use the remaining observations as the training set. In the code, we set the random seed to make the result reproducible, but this seed can be changed.
+```{r}
+library(faraway)
+n=dim(fat)[1]
+set.seed(12357)
+testid = sample(n, 25, replace=FALSE)
+trainid = -testid
+test = fat[testid,]
+train = fat[trainid,]
+
+```
+We will compare several regression methods using train/test evaluation.
+
+**a)** For the \texttt{fat} data, create a randomly selected test set of 25 observations and a training set consisting of all the other observations, removing the variables \texttt{brozek} and \texttt{density} from the data. Display the first 6 rows of the training and test sets. Also display the dimensions of the training data frame and test data frame.
+
+**Answer:**
+```{r}
+library(faraway)
+library(tidyverse)
+n=dim(fat)[1]
+set.seed(12357)
+testid = sample(n, 25, replace=FALSE)
+trainid = -testid
+test = fat[testid,]
+test = test %>%
+  select(-c(brozek,density))
+train = fat[trainid,]
+train = train %>%
+  select(-c(brozek,density))
+```
+
+```{r}
+head(train,6)
+```
+
+```{r}
+dim(train)
+```
+
+```{r}
+head(test,6)
+```
+
+```{r}
+dim(test)
+```
+
+**b)** Use the training data to estimate the linear regression of \texttt{siri} on all of the other variables except for \texttt{brozek} and \texttt{density}. Then use the test data to compute the estimated mean square error for prediction.
+
+**Answer:**
+```{r}
+mod.1a = lm(siri~., data = train)
+mse_test_value = mean((test$siri - predict(mod.1a,test))^2)
+mse_test_value
+```
+
+**c)** Repeat exercise b) for linear regression with variables selected using the BIC criterion (leaps and bounds or stepwise)
+
+**Answer:**
+
+```{r}
+model = lm(siri~., data = train)
+n=dim(train)[1]
+bic.mod = step(model, direction = "both", k = log(n))
+bic.mod
+```
+Therefore, the model we use is siri ~ weight + adipos + free + chest + abdom + 
+    thigh + ankle + forearm:
+```{r}
+bic.mod = lm(siri ~ weight + adipos + free + chest + abdom + 
+    thigh + ankle + forearm, data = train)
+summary(bic.mod)
+```
+
+```{r}
+mse_test_value = mean((test$siri - predict(bic.mod,test))^2)
+mse_test_value
+```
+
+**d)** Repeat exercise b) for scaled principal components regression, where you keep enough components to account for 90\% of the variation in predictor variables.
+
+**Answer:**
+
+```{r}
+pctrain<-prcomp(train[,2:16],scale=TRUE)
+summary(pctrain)
+```
+
+The first principal component (PC1), explains 63.7% of the total data variation, while the first six components explain more than 90% of the total variation.
+
+```{r}
+modpcr=lm(train$siri~pctrain$x[,1:6]) #Using the first six PCs
+summary(modpcr)
+```
+
+```{r}
+library(pls)
+
+modpcr=pcr(siri ~ ., data=train,ncomp=15)
+mse_test_value = mean((test$siri - predict(modpcr,test,ncomp=6))^2)
+mse_test_value
+```
+
+**e)** Repeat exercise b) for Lasso regression, where the amount of shrinkage is selected by 10-fold cross-validation.
+
+
+**Answer:**
+
+```{r}
+library(lars)
+```
+
+
+## Problem 2 
+
+Consider the \texttt{chickwts} data in library \texttt{datasets}, which compares weights of the chicks randomized into several different groups given different feed supplements.
+
+**a)** Make boxplots of weight versus feed. Comment on whether the plots show evidence of differences between groups, and whether the data appear consistent with the assumption of normally distributed responses with equal variances.
+
+**Answer:**
+
+```{r}
+library(datasets)
+boxplot(weight~feed,data=chickwts, main="weight versus feed",
+   xlab="feed", ylab="weight")
+```
+
+Since the median line of a box plot lies outside of the box of a comparison box plot, there is likely to be differences between groups. 
+
+The data doesn't appear consistent with the assumption of normally distributed responses with equal variances because the median line doesn't sit at the middle of each box. 
+
+
+**b)** Perform an F test for equality of treatment means. State the null and alternative hypotheses, and indicate whether there is a significant feed effect at level $\alpha=0.05$.
+
+**Answer:**
+
+null: the means of groups are same
+alternative: not all the means are equal.
+
+```{r}
+mod = lm(weight~feed, data = chickwts)
+null = lm(weight~1, data = chickwts)
+anova(null, mod)
+```
+
+there is a significant feed effect at level $\alpha=0.05$ since p-value is 5.936e-10<0.05. 
+
+**c)** Check the model assumptions using plots of residuals versus fitted values, QQ plot of standardized residuals versus noraml quantiles, and plot of absolute residuals versus fitted values. Comment on what the plots say about the appropriateness of the assumptions of the F test.
+
+**Answer:**
+
+
+```{r}
+par(mfrow = c(2,2))
+plot(mod)
+```
+
+From the residuals vs. fitted values plot, we can see that the departures from the
+constant variance assumption is appropriate since the errors have constant variance, with the residuals scattered randomly around zero
+
+From the Q-Q plot we can see that the departures from the normality assumption is appropriate since the points in the QQ-normal plot lie on a straight diagonal line.
+
+
+```{r}
+plot(mod$fitted.values, abs(mod$residuals), 
+ylab="Absolute Residuals", xlab="feed", 
+main="absolute residuals vs fitted value") 
+```
+
+It illustrates that the variation is constant suggesting that the assumption of equal error variances is reasonable.
+
+**d)** Use the Bonferroni method to test all the pairwise differences between treatment means, controlling the family-wise type I error rate at level $\alpha=0.05$.
+
+**Answer:**
+```{r}
+pairwise.t.test(chickwts$weight, chickwts$feed, p.adjust.method = "bonferroni")
+```
+In order to control the family wise error rate to be α, we need to
+reduce the error rate for each individual comparison to be α/m.
+
+That is we need to increase the significance level from (1 − α)
+to (1 − α/m).
+
+0.05/5=0.01, therefore we have tested that:
+horsebean-casein, linseed-casein, soybean-casein, sunflower-horsebean, soybean-horsebean, meatmeal-horsebean, sunflower-linseed, sunflower-soybean are test significant. 
+
+**e)** Use the Tukey method to obtain all the pairwise confidence intervals for differences between treatment means, with family-wise confidence level of at least 95\%.
+
+**Answer:**
+
+```{r}
+TukeyHSD(aov(chickwts$weight~chickwts$feed), data = chickwts)
+```
+
+Tukey simultaneous 95% CI for all mean differences. 
+
+## Problem 3:
+
+Consider the \texttt{infmort} data in library \texttt{faraway}. The data include per capita income, infant mortality per 1000 births, and oil exporter status for 5 regions of the world. 
+
+
+**a)** Perform a one-way ANOVA with \texttt{mortality} as the response and \texttt{region} as the predictor. Is the test significant at level 0.05?
+
+**Answer:**
+```{r}
+library(faraway)
+```
+
+```{r}
+mod = lm(mortality~region, data = infmort)
+anova(mod)
+```
+
+Test significant at level 0.05 since p-value = 2.494e-06<0.05
+
+**b)** Check the residuals of the model to see if you detect any problems with the model assumptions such as Normal errors with constant variance.
+
+**Answer:**
+```{r}
+par(mfrow = c(2,2))
+plot(mod)
+```
+
+We check the residuals vs. fitted values plot for departures from the
+constant variance assumption and detect that it has larger variance with bigger fitted value.
+
+We check the Q-Q plot for departures from the normality assumption, and detect that the points don't line on a straight line so the assumption may be inappropriate. 
+
+
+
+**c)** Use the boxcox method to select a transformation of the response. Is the log transformation ($\lambda=0$) included in the 95\% confidence interval for the transformation parameter $\lambda$?
+
+**Answer:**
+```{r}
+library(MASS)
+trans = boxcox(mod, lambda=seq(-2, 2, length=400))
+```
+
+```{r}
+trans$x[trans$y == max(trans$y)]
+```
+
+```{r}
+boxcox(mod,plotit=T,lambda=seq(-0.3,0.2,by=0.05))
+```
+
+```{r}
+tmp=trans$x[trans$y > max(trans$y) - qchisq(0.95, 1)/2]
+range(tmp)
+```
+
+As we can see, 0 is included in the 95% interval. 
+
+**d)** Redo parts a) and b) using log mortality as the response.
+
+**Answer:**
+```{r}
+library(faraway)
+```
+
+```{r}
+mod.2 = lm(log(mortality)~region, data = infmort)
+anova(mod.2)
+```
+
+Test significant at level 0.05 since p-value = 3.373e-16<0.05
+
+```{r}
+par(mfrow = c(2,2))
+plot(mod.2)
+```
+
+From the residuals vs. fitted values plot, we can see that the departures from the constant variance assumption is appropriate since the errors have constant variance, with the residuals scattered randomly around zero
+
+From the Q-Q plot we can see that the departures from the normality assumption is appropriate since the points in the QQ-normal plot lie on a straight diagonal line.
+
+
+**e)** With log mortality as the response, which pairs of regions are significantly different, controlling the family-wise type I error rate at 0.05?
+
+
+**Answer:**
+```{r}
+pairwise.t.test(log(infmort$mortality), infmort$region, p.adjust.method = "bonferroni")
+```
+0.05/3 = 0.016667
+Europe-Africa, Asia-Africa, Asia- Europe, Americas-Africa, Americas-Europe are significantly different since the p-value < 0.016667
+
+
+
+
+
